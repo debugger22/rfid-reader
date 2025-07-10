@@ -1,0 +1,27 @@
+[Unit]
+Description=RFID Reader Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/rfid_reader.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rfid-reader
+
+# Environment variables
+Environment=PYTHONPATH=/usr/local/lib/python3.9/dist-packages
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/log /etc/rfid_reader /var/lib/rfid_reader
+
+[Install]
+WantedBy=multi-user.target 

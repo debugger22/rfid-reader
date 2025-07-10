@@ -1,0 +1,21 @@
+# RFID Reader Configuration
+# This file should be placed at /etc/rfid_reader/config.toml
+
+# Device ID (will be auto-generated if not set)
+# device_id = "your_device_id_here"
+
+# Webhook URL to send RFID data
+webhook_url = "https://your-webhook-endpoint.com/rfid"
+
+# API Key for webhook authentication (optional)
+# api_key = "your_api_key_here"
+
+# Optional: GPIO pins for RC522 (default values)
+# sda_pin = 8
+# sck_pin = 11
+# mosi_pin = 10
+# miso_pin = 9
+# rst_pin = 25
+
+# Optional: Logging level (DEBUG, INFO, WARNING, ERROR)
+# log_level = "INFO" 
