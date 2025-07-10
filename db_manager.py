@@ -71,7 +71,7 @@ def show_recent(db_path: str, limit: int = 20):
     print(f"=== Recent Card Reads (Last {limit}) ===")
     
     cursor.execute("""
-        SELECT id, device_id, card_value, timestamp, sync_status, sync_attempts, created_at
+        SELECT id, device_id, card_id, card_value, timestamp, sync_status, sync_attempts, created_at
         FROM card_reads 
         ORDER BY created_at DESC 
         LIMIT ?
@@ -83,12 +83,15 @@ def show_recent(db_path: str, limit: int = 20):
         print("No records found.")
         return
     
-    print(f"{'ID':<5} {'Card':<15} {'Status':<10} {'Attempts':<10} {'Created':<20}")
-    print("-" * 70)
+    print(f"{'ID':<5} {'Card ID':<15} {'Card Value':<20} {'Status':<10} {'Attempts':<10} {'Created':<20}")
+    print("-" * 85)
     
     for record in records:
-        row_id, device_id, card_value, timestamp, sync_status, attempts, created_at = record
-        print(f"{row_id:<5} {card_value:<15} {sync_status:<10} {attempts:<10} {created_at:<20}")
+        row_id, device_id, card_id, card_value, timestamp, sync_status, attempts, created_at = record
+        # Truncate long values for display
+        display_card_id = card_id[:14] + "..." if len(card_id) > 14 else card_id
+        display_card_value = card_value[:19] + "..." if len(card_value) > 19 else card_value
+        print(f"{row_id:<5} {display_card_id:<15} {display_card_value:<20} {sync_status:<10} {attempts:<10} {created_at:<20}")
     
     conn.close()
 
@@ -100,7 +103,7 @@ def show_pending(db_path: str):
     print("=== Pending Syncs ===")
     
     cursor.execute("""
-        SELECT id, card_value, sync_attempts, last_sync_attempt, next_retry, created_at
+        SELECT id, card_id, card_value, sync_attempts, last_sync_attempt, next_retry, created_at
         FROM card_reads 
         WHERE sync_status = 'pending'
         ORDER BY created_at ASC
@@ -112,14 +115,17 @@ def show_pending(db_path: str):
         print("No pending syncs found.")
         return
     
-    print(f"{'ID':<5} {'Card':<15} {'Attempts':<10} {'Last Attempt':<20} {'Next Retry':<20}")
-    print("-" * 80)
+    print(f"{'ID':<5} {'Card ID':<15} {'Card Value':<20} {'Attempts':<10} {'Last Attempt':<20} {'Next Retry':<20}")
+    print("-" * 95)
     
     for record in records:
-        row_id, card_value, attempts, last_attempt, next_retry, created_at = record
+        row_id, card_id, card_value, attempts, last_attempt, next_retry, created_at = record
         last_attempt_str = last_attempt if last_attempt else "Never"
         next_retry_str = next_retry if next_retry else "Now"
-        print(f"{row_id:<5} {card_value:<15} {attempts:<10} {last_attempt_str:<20} {next_retry_str:<20}")
+        # Truncate long values for display
+        display_card_id = card_id[:14] + "..." if len(card_id) > 14 else card_id
+        display_card_value = card_value[:19] + "..." if len(card_value) > 19 else card_value
+        print(f"{row_id:<5} {display_card_id:<15} {display_card_value:<20} {attempts:<10} {last_attempt_str:<20} {next_retry_str:<20}")
     
     conn.close()
 
@@ -179,7 +185,7 @@ def export_data(db_path: str, output_file: str):
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT device_id, card_value, timestamp, sync_status, sync_attempts, 
+        SELECT device_id, card_id, card_value, timestamp, sync_status, sync_attempts, 
                last_sync_attempt, created_at
         FROM card_reads 
         ORDER BY created_at DESC
@@ -190,7 +196,7 @@ def export_data(db_path: str, output_file: str):
     
     with open(output_file, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['Device ID', 'Card Value', 'Timestamp', 'Sync Status', 
+        writer.writerow(['Device ID', 'Card ID', 'Card Value', 'Timestamp', 'Sync Status', 
                         'Sync Attempts', 'Last Sync Attempt', 'Created At'])
         writer.writerows(records)
     

@@ -67,7 +67,8 @@ class WebhookHandler(BaseHTTPRequestHandler):
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             logger.info(f"Received webhook at {timestamp}:")
             logger.info(f"  Device ID: {data.get('device_id', 'Unknown')}")
-            logger.info(f"  Card Value: {data.get('value', 'Unknown')}")
+            logger.info(f"  Card ID: {data.get('card_id', 'Unknown')}")
+            logger.info(f"  Card Value: {data.get('card_value', 'Unknown')}")
             logger.info(f"  Remote Address: {self.client_address[0]}")
             
             # Send response

@@ -64,6 +64,7 @@ class DatabaseManager:
                     CREATE TABLE IF NOT EXISTS card_reads (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         device_id TEXT NOT NULL,
+                        card_id TEXT NOT NULL,
                         card_value TEXT NOT NULL,
                         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                         sync_status TEXT DEFAULT 'pending',
@@ -93,18 +94,18 @@ class DatabaseManager:
             logger.error(f"Error initializing database: {e}")
             raise
     
-    def insert_card_read(self, device_id: str, card_value: str) -> int:
+    def insert_card_read(self, device_id: str, card_id: str, card_value: str) -> int:
         """Insert a new card read into the database"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    INSERT INTO card_reads (device_id, card_value, next_retry)
-                    VALUES (?, ?, datetime('now'))
-                ''', (device_id, card_value))
+                    INSERT INTO card_reads (device_id, card_id, card_value, next_retry)
+                    VALUES (?, ?, ?, datetime('now'))
+                ''', (device_id, card_id, card_value))
                 conn.commit()
                 row_id = cursor.lastrowid
-                logger.info(f"Card read stored in database: {card_value} (ID: {row_id})")
+                logger.info(f"Card read stored in database: ID={card_id}, Value='{card_value}' (DB ID: {row_id})")
                 return row_id
         except Exception as e:
             logger.error(f"Error inserting card read: {e}")
@@ -116,7 +117,7 @@ class DatabaseManager:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    SELECT id, device_id, card_value, timestamp, sync_attempts, last_sync_attempt
+                    SELECT id, device_id, card_id, card_value, timestamp, sync_attempts, last_sync_attempt
                     FROM card_reads 
                     WHERE sync_status = 'pending' 
                     AND (next_retry IS NULL OR next_retry <= datetime('now'))
@@ -340,7 +341,7 @@ class RFIDReader:
         except Exception as e:
             logger.error(f"Error updating config file: {e}")
     
-    def send_webhook(self, card_value: str) -> Tuple[bool, str]:
+    def send_webhook(self, card_id: str, card_value: str) -> Tuple[bool, str]:
         """Send RFID data to webhook and return success status and response"""
         webhook_url = self.config.get('webhook_url')
         if not webhook_url:
@@ -349,7 +350,8 @@ class RFIDReader:
         
         payload = {
             'device_id': self.device_id,
-            'value': card_value
+            'card_id': card_id,
+            'card_value': card_value
         }
         
         # Prepare headers
@@ -380,16 +382,17 @@ class RFIDReader:
             logger.error(f"Error sending webhook: {e}")
             return False, str(e)
     
-    def read_card(self) -> Optional[str]:
-        """Read RFID card and return card ID"""
+    def read_card(self) -> Optional[tuple]:
+        """Read RFID card and return (card_id, card_value) tuple"""
         try:
             id, text = self.reader.read()
             card_id = str(id)
+            card_value = text.strip() if text else ""
             
             if card_id != self.last_card_id:
                 self.last_card_id = card_id
-                logger.info(f"Card detected: {card_id}")
-                return card_id
+                logger.info(f"Card detected: ID={card_id}, Value='{card_value}'")
+                return (card_id, card_value)
             else:
                 return None
                 
@@ -406,17 +409,17 @@ class RFIDReader:
         
         logger.info(f"Attempting to sync {len(pending_syncs)} pending records...")
         
-        for row_id, device_id, card_value, timestamp, attempts, last_attempt in pending_syncs:
+        for row_id, device_id, card_id, card_value, timestamp, attempts, last_attempt in pending_syncs:
             try:
-                success, response = self.send_webhook(card_value)
+                success, response = self.send_webhook(card_id, card_value)
                 
                 if success:
                     self.db_manager.update_sync_status(row_id, 'success', response)
-                    logger.info(f"Successfully synced card read {row_id}: {card_value}")
+                    logger.info(f"Successfully synced card read {row_id}: ID={card_id}, Value='{card_value}'")
                 else:
                     new_attempts = attempts + 1
                     self.db_manager.update_sync_status(row_id, 'pending', response, new_attempts)
-                    logger.warning(f"Failed to sync card read {row_id}: {card_value} (attempt {new_attempts})")
+                    logger.warning(f"Failed to sync card read {row_id}: ID={card_id}, Value='{card_value}' (attempt {new_attempts})")
                     
             except Exception as e:
                 logger.error(f"Error syncing card read {row_id}: {e}")
@@ -455,13 +458,14 @@ class RFIDReader:
         
         try:
             while True:
-                card_id = self.read_card()
+                card_data = self.read_card()
                 
-                if card_id:
+                if card_data:
+                    card_id, card_value = card_data
                     # Store in database immediately (write-through)
                     try:
-                        row_id = self.db_manager.insert_card_read(self.device_id, card_id)
-                        logger.info(f"Card read stored: {card_id} (DB ID: {row_id})")
+                        row_id = self.db_manager.insert_card_read(self.device_id, card_id, card_value)
+                        logger.info(f"Card read stored: ID={card_id}, Value='{card_value}' (DB ID: {row_id})")
                     except Exception as e:
                         logger.error(f"Failed to store card read in database: {e}")
                 

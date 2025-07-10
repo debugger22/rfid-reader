@@ -66,10 +66,12 @@ cp rfid_reader.py /usr/local/bin/
 cp db_manager.py /usr/local/bin/
 cp diagnose.py /usr/local/bin/
 cp fix_spi.sh /usr/local/bin/
+cp migrate_db.py /usr/local/bin/
 chmod +x /usr/local/bin/rfid_reader.py
 chmod +x /usr/local/bin/db_manager.py
 chmod +x /usr/local/bin/diagnose.py
 chmod +x /usr/local/bin/fix_spi.sh
+chmod +x /usr/local/bin/migrate_db.py
 
 # Update shebang to use virtual environment
 print_status "Updating scripts to use virtual environment..."
@@ -110,6 +112,14 @@ print_status "Setting virtual environment permissions..."
 chown -R root:root /opt/rfid_reader
 chmod 755 /opt/rfid_reader
 chmod 755 /opt/rfid_reader/venv
+
+# Run database migration if needed
+print_status "Checking database schema..."
+if [ -f "/var/lib/rfid_reader/card_reads.db" ]; then
+    /opt/rfid_reader/venv/bin/python /usr/local/bin/migrate_db.py
+else
+    print_status "No existing database found, migration not needed"
+fi
 
 # Configure SPI interface
 print_status "Configuring SPI interface..."

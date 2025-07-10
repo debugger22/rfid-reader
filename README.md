@@ -134,7 +134,8 @@ The service sends POST requests to your webhook URL with the following JSON payl
 ```json
 {
   "device_id": "abc123def456",
-  "value": "123456789"
+  "card_id": "123456789",
+  "card_value": "John Doe"
 }
 ```
 
@@ -144,7 +145,8 @@ The service sends POST requests to your webhook URL with the following JSON payl
 
 ### Payload Fields
 - **device_id**: The unique identifier for this RFID reader device
-- **value**: The RFID card ID that was read
+- **card_id**: The RFID card ID (unique hardware identifier)
+- **card_value**: The text content stored on the RFID card (can be empty if no data is written)
 
 ## Service Management
 
@@ -327,7 +329,7 @@ python3 test_webhook_server.py --api-key "your_test_api_key"
 curl -X POST http://localhost:8080 \
   -H "Content-Type: application/json" \
   -H "x-api-key: your_test_api_key" \
-  -d '{"device_id":"test123","value":"card456"}'
+  -d '{"device_id":"test123","card_id":"123456789","card_value":"John Doe"}'
 ```
 
 ## License
