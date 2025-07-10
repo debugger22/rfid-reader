@@ -45,8 +45,13 @@ class DatabaseManager:
     
     def ensure_db_directory(self):
         """Ensure the database directory exists"""
-        db_dir = os.path.dirname(self.db_path)
-        os.makedirs(db_dir, exist_ok=True)
+        try:
+            db_dir = os.path.dirname(self.db_path)
+            os.makedirs(db_dir, exist_ok=True)
+            logger.info(f"Database directory ensured: {db_dir}")
+        except Exception as e:
+            logger.error(f"Error creating database directory: {e}")
+            raise
     
     def init_database(self):
         """Initialize the database with required tables"""
@@ -179,9 +184,69 @@ class RFIDReader:
         self.config_path = config_path
         self.config = self.load_config()
         self.device_id = self.get_device_id()
-        self.reader = SimpleMFRC522()
+        
+        # Initialize database first
+        logger.info("Initializing database manager...")
+        try:
+            self.db_manager = DatabaseManager()
+            logger.info("Database manager initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize database manager: {e}")
+            raise
+        
+        # Initialize RFID reader
+        logger.info("Initializing RFID reader...")
+        
+        # Check if SPI is available
+        try:
+            import spidev
+            logger.info("SPI interface check passed")
+        except ImportError:
+            logger.warning("spidev not available, SPI interface may not work properly")
+        
+        # Check SPI interface status
+        try:
+            with open('/proc/cpuinfo', 'r') as f:
+                if 'Raspberry Pi' in f.read():
+                    logger.info("Running on Raspberry Pi")
+                    
+                    # Check if SPI is enabled in config
+                    try:
+                        with open('/boot/config.txt', 'r') as config:
+                            if 'dtparam=spi=on' in config.read():
+                                logger.info("SPI enabled in /boot/config.txt")
+                            else:
+                                logger.warning("SPI not enabled in /boot/config.txt")
+                    except Exception as e:
+                        logger.warning(f"Could not check /boot/config.txt: {e}")
+                    
+                    # Check if SPI module is loaded
+                    try:
+                        result = subprocess.run(['lsmod'], capture_output=True, text=True)
+                        if 'spi_bcm2835' in result.stdout:
+                            logger.info("SPI kernel module loaded")
+                        else:
+                            logger.warning("SPI kernel module not loaded")
+                    except Exception as e:
+                        logger.warning(f"Could not check loaded modules: {e}")
+                else:
+                    logger.info("Not running on Raspberry Pi")
+        except Exception as e:
+            logger.warning(f"Could not check system info: {e}")
+        
+        try:
+            self.reader = SimpleMFRC522()
+            logger.info("RFID reader initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize RFID reader: {e}")
+            logger.error("This might be due to:")
+            logger.error("1. SPI not enabled in /boot/config.txt")
+            logger.error("2. SPI kernel module not loaded")
+            logger.error("3. Hardware not connected properly")
+            logger.error("4. Insufficient permissions")
+            raise
+        
         self.last_card_id = None
-        self.db_manager = DatabaseManager()
         self.sync_thread = None
         self.running = False
         
@@ -417,10 +482,14 @@ class RFIDReader:
 def main():
     """Main entry point"""
     try:
+        logger.info("Starting RFID reader application...")
         reader = RFIDReader()
+        logger.info("RFID reader initialized successfully, starting main loop...")
         reader.run()
     except Exception as e:
         logger.error(f"Fatal error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
 
 if __name__ == "__main__":

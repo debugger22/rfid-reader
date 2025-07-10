@@ -64,13 +64,16 @@ mkdir -p /var/lib/rfid_reader
 print_status "Installing RFID reader script..."
 cp rfid_reader.py /usr/local/bin/
 cp db_manager.py /usr/local/bin/
+cp diagnose.py /usr/local/bin/
 chmod +x /usr/local/bin/rfid_reader.py
 chmod +x /usr/local/bin/db_manager.py
+chmod +x /usr/local/bin/diagnose.py
 
 # Update shebang to use virtual environment
 print_status "Updating scripts to use virtual environment..."
 sed -i '1s|#!/usr/bin/env python3|#!/opt/rfid_reader/venv/bin/python|' /usr/local/bin/rfid_reader.py
 sed -i '1s|#!/usr/bin/env python3|#!/opt/rfid_reader/venv/bin/python|' /usr/local/bin/db_manager.py
+sed -i '1s|#!/usr/bin/env python3|#!/opt/rfid_reader/venv/bin/python|' /usr/local/bin/diagnose.py
 
 # Copy configuration file
 print_status "Installing configuration file..."

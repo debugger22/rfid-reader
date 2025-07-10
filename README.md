@@ -246,6 +246,29 @@ sudo db_manager.py export /tmp/rfid_data.csv
    sudo tail -f /var/log/rfid_reader.log
    ```
 
+### Service failing to start
+
+If the service is failing to start, run the diagnostic tool:
+
+```bash
+sudo diagnose.py
+```
+
+This will check:
+- Python environment and dependencies
+- File permissions and existence
+- SPI interface configuration
+- Database access
+- Network connectivity
+- Configuration file validity
+
+Common issues and solutions:
+
+1. **SPI not enabled**: Add `dtparam=spi=on` to `/boot/config.txt` and reboot
+2. **Missing dependencies**: Reinstall with `sudo ./install.sh`
+3. **Permission issues**: Check file permissions and ownership
+4. **Database directory**: Ensure `/var/lib/rfid_reader` exists and is writable
+
 ## Development
 
 ### Running in development mode
