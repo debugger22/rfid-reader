@@ -48,6 +48,7 @@ systemctl daemon-reload
 # Remove installed files
 print_status "Removing installed files..."
 rm -f /usr/local/bin/rfid_reader.py
+rm -f /usr/local/bin/db_manager.py
 
 # Remove configuration directory (ask user first)
 if [ -d "/etc/rfid_reader" ]; then
@@ -73,8 +74,19 @@ if [ -f "/var/log/rfid_reader.log" ]; then
     fi
 fi
 
-# Ask about removing Python packages
-print_warning "Do you want to remove the Python packages (mfrc522, RPi.GPIO, requests)? (y/N)"
+# Ask about removing virtual environment
+print_warning "Do you want to remove the virtual environment (/opt/rfid_reader/venv)? (y/N)"
+read -r response
+if [[ "$response" =~ ^[Yy]$ ]]; then
+    print_status "Removing virtual environment..."
+    rm -rf /opt/rfid_reader
+    print_status "Virtual environment removed"
+else
+    print_status "Virtual environment kept at /opt/rfid_reader/venv"
+fi
+
+# Ask about removing Python packages (if not using virtual env)
+print_warning "Do you want to remove the Python packages (mfrc522, RPi.GPIO, requests) from system Python? (y/N)"
 read -r response
 if [[ "$response" =~ ^[Yy]$ ]]; then
     print_status "Removing Python packages..."

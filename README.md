@@ -57,21 +57,29 @@ Connect the RC522 module to your Raspberry Pi as follows:
 1. Install system dependencies:
    ```bash
    sudo apt-get update
-   sudo apt-get install python3-pip python3-dev
+   sudo apt-get install python3-pip python3-dev python3-venv
    ```
 
-2. Install Python dependencies:
+2. Create virtual environment and install dependencies:
    ```bash
-   pip3 install -r requirements.txt
+   sudo mkdir -p /opt/rfid_reader
+   sudo python3 -m venv /opt/rfid_reader/venv
+   sudo /opt/rfid_reader/venv/bin/pip install -r requirements.txt
    ```
 
 3. Copy files to system locations:
    ```bash
    sudo mkdir -p /etc/rfid_reader
    sudo cp rfid_reader.py /usr/local/bin/
+   sudo cp db_manager.py /usr/local/bin/
    sudo cp config.toml /etc/rfid_reader/
    sudo cp rfid-reader.service /etc/systemd/system/
    sudo chmod +x /usr/local/bin/rfid_reader.py
+   sudo chmod +x /usr/local/bin/db_manager.py
+   
+   # Update shebang to use virtual environment
+   sudo sed -i '1s|#!/usr/bin/env python3|#!/opt/rfid_reader/venv/bin/python|' /usr/local/bin/rfid_reader.py
+   sudo sed -i '1s|#!/usr/bin/env python3|#!/opt/rfid_reader/venv/bin/python|' /usr/local/bin/db_manager.py
    ```
 
 4. Enable SPI interface:

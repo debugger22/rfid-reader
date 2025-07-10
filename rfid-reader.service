@@ -14,8 +14,9 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=rfid-reader
 
-# Environment variables
-Environment=PYTHONPATH=/usr/local/lib/python3.9/dist-packages
+# Environment variables for virtual environment
+Environment=PYTHONPATH=/opt/rfid_reader/venv/lib/python3.9/site-packages
+Environment=VIRTUAL_ENV=/opt/rfid_reader/venv
 
 # Security settings
 NoNewPrivileges=true

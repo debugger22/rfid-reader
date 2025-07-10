@@ -45,13 +45,13 @@ print_status "Starting RFID Reader installation..."
 print_status "Updating package list..."
 apt-get update
 
-# Install required system packages
-print_status "Installing required system packages..."
-apt-get install -y python3-pip python3-dev python3-venv git
+# Create virtual environment
+print_status "Creating virtual environment..."
+python3 -m venv /opt/rfid_reader/venv
 
-# Install Python dependencies
-print_status "Installing Python dependencies..."
-pip3 install mfrc522 RPi.GPIO requests
+# Activate virtual environment and install Python dependencies
+print_status "Installing Python dependencies in virtual environment..."
+/opt/rfid_reader/venv/bin/pip install mfrc522 RPi.GPIO requests
 
 # Create necessary directories
 print_status "Creating directories..."
@@ -66,6 +66,11 @@ cp rfid_reader.py /usr/local/bin/
 cp db_manager.py /usr/local/bin/
 chmod +x /usr/local/bin/rfid_reader.py
 chmod +x /usr/local/bin/db_manager.py
+
+# Update shebang to use virtual environment
+print_status "Updating scripts to use virtual environment..."
+sed -i '1s|#!/usr/bin/env python3|#!/opt/rfid_reader/venv/bin/python|' /usr/local/bin/rfid_reader.py
+sed -i '1s|#!/usr/bin/env python3|#!/opt/rfid_reader/venv/bin/python|' /usr/local/bin/db_manager.py
 
 # Copy configuration file
 print_status "Installing configuration file..."
@@ -95,6 +100,12 @@ print_status "Setting database permissions..."
 chown -R root:root /var/lib/rfid_reader
 chmod 755 /var/lib/rfid_reader
 
+# Set virtual environment permissions
+print_status "Setting virtual environment permissions..."
+chown -R root:root /opt/rfid_reader
+chmod 755 /opt/rfid_reader
+chmod 755 /opt/rfid_reader/venv
+
 # Configure SPI interface
 print_status "Configuring SPI interface..."
 if ! grep -q "dtparam=spi=on" /boot/config.txt; then
@@ -118,4 +129,7 @@ echo "3. Reboot the Raspberry Pi: sudo reboot"
 echo "4. Check service status: sudo systemctl status rfid-reader"
 echo "5. View logs: sudo journalctl -u rfid-reader -f"
 echo ""
-print_status "The service will automatically start on boot and restart if it crashes." 
+print_status "The service will automatically start on boot and restart if it crashes."
+echo ""
+print_status "Virtual environment created at: /opt/rfid_reader/venv"
+print_status "Python dependencies installed in virtual environment" 
