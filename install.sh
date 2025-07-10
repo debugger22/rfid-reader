@@ -65,9 +65,11 @@ print_status "Installing RFID reader script..."
 cp rfid_reader.py /usr/local/bin/
 cp db_manager.py /usr/local/bin/
 cp diagnose.py /usr/local/bin/
+cp fix_spi.sh /usr/local/bin/
 chmod +x /usr/local/bin/rfid_reader.py
 chmod +x /usr/local/bin/db_manager.py
 chmod +x /usr/local/bin/diagnose.py
+chmod +x /usr/local/bin/fix_spi.sh
 
 # Update shebang to use virtual environment
 print_status "Updating scripts to use virtual environment..."
@@ -118,9 +120,26 @@ else
     print_status "SPI already enabled"
 fi
 
-# Check if SPI is loaded
-if ! lsmod | grep -q spi_bcm2835; then
-    print_warning "SPI module not loaded. You may need to reboot for SPI to work properly."
+# Try to load SPI module
+print_status "Loading SPI kernel module..."
+if modprobe spi_bcm2835 2>/dev/null; then
+    print_status "✓ SPI kernel module loaded successfully"
+else
+    print_warning "Could not load SPI kernel module (may need reboot)"
+fi
+
+# Check SPI devices
+spi_devices=("/dev/spidev0.0" "/dev/spidev0.1")
+spi_available=false
+for device in "${spi_devices[@]}"; do
+    if [ -e "$device" ]; then
+        print_status "✓ Found SPI device: $device"
+        spi_available=true
+    fi
+done
+
+if [ "$spi_available" = false ]; then
+    print_warning "SPI devices not available. Run fix_spi.sh or reboot."
 fi
 
 print_status "Installation completed successfully!"
@@ -128,11 +147,16 @@ echo ""
 print_status "Next steps:"
 echo "1. Edit the configuration file: sudo nano /etc/rfid_reader/config.toml"
 echo "2. Set your webhook URL in the config file"
-echo "3. Reboot the Raspberry Pi: sudo reboot"
-echo "4. Check service status: sudo systemctl status rfid-reader"
-echo "5. View logs: sudo journalctl -u rfid-reader -f"
+echo "3. If SPI is not working, run: sudo fix_spi.sh"
+echo "4. Reboot the Raspberry Pi: sudo reboot"
+echo "5. Check service status: sudo systemctl status rfid-reader"
+echo "6. View logs: sudo journalctl -u rfid-reader -f"
 echo ""
 print_status "The service will automatically start on boot and restart if it crashes."
 echo ""
 print_status "Virtual environment created at: /opt/rfid_reader/venv"
-print_status "Python dependencies installed in virtual environment" 
+print_status "Python dependencies installed in virtual environment"
+echo ""
+print_status "Troubleshooting tools available:"
+echo "  sudo diagnose.py    - Run comprehensive diagnostics"
+echo "  sudo fix_spi.sh     - Fix SPI interface issues" 

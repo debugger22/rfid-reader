@@ -262,12 +262,27 @@ This will check:
 - Network connectivity
 - Configuration file validity
 
+### SPI Interface Issues
+
+If you see errors like `[Errno 2] No such file or directory` related to SPI, run the SPI fix script:
+
+```bash
+sudo fix_spi.sh
+```
+
+This script will:
+- Enable SPI in `/boot/config.txt` if not already enabled
+- Load the SPI kernel module
+- Check for SPI device files
+- Test GPIO access
+
 Common issues and solutions:
 
-1. **SPI not enabled**: Add `dtparam=spi=on` to `/boot/config.txt` and reboot
-2. **Missing dependencies**: Reinstall with `sudo ./install.sh`
-3. **Permission issues**: Check file permissions and ownership
-4. **Database directory**: Ensure `/var/lib/rfid_reader` exists and is writable
+1. **SPI not enabled**: Run `sudo fix_spi.sh` or add `dtparam=spi=on` to `/boot/config.txt` and reboot
+2. **SPI module not loaded**: Run `sudo fix_spi.sh` or reboot the system
+3. **Missing dependencies**: Reinstall with `sudo ./install.sh`
+4. **Permission issues**: Check file permissions and ownership
+5. **Database directory**: Ensure `/var/lib/rfid_reader` exists and is writable
 
 ## Development
 
