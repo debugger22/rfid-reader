@@ -235,17 +235,25 @@ class RFIDReader:
         except Exception as e:
             logger.warning(f"Could not check system info: {e}")
         
-        try:
-            self.reader = SimpleMFRC522()
-            logger.info("RFID reader initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize RFID reader: {e}")
-            logger.error("This might be due to:")
-            logger.error("1. SPI not enabled in /boot/config.txt")
-            logger.error("2. SPI kernel module not loaded")
-            logger.error("3. Hardware not connected properly")
-            logger.error("4. Insufficient permissions")
-            raise
+        # Initialize RFID reader with retry logic
+        max_init_attempts = 3
+        for attempt in range(max_init_attempts):
+            try:
+                self.reader = SimpleMFRC522()
+                logger.info("RFID reader initialized successfully")
+                break
+            except Exception as e:
+                logger.error(f"Failed to initialize RFID reader (attempt {attempt + 1}/{max_init_attempts}): {e}")
+                if attempt < max_init_attempts - 1:
+                    logger.info("Retrying RFID reader initialization...")
+                    time.sleep(2)
+                else:
+                    logger.error("This might be due to:")
+                    logger.error("1. SPI not enabled in /boot/config.txt")
+                    logger.error("2. SPI kernel module not loaded")
+                    logger.error("3. Hardware not connected properly")
+                    logger.error("4. Insufficient permissions")
+                    raise
         
         self.last_card_id = None
         self.sync_thread = None
@@ -385,6 +393,9 @@ class RFIDReader:
     def read_card(self) -> Optional[tuple]:
         """Read RFID card and return (card_id, card_value) tuple"""
         try:
+            # Add a small delay to prevent excessive reads
+            time.sleep(0.1)
+            
             id, text = self.reader.read()
             card_id = str(id)
             card_value = text.strip() if text else ""
@@ -398,6 +409,12 @@ class RFIDReader:
                 
         except Exception as e:
             logger.error(f"Error reading RFID card: {e}")
+            # Reset the reader on error
+            try:
+                self.reader = SimpleMFRC522()
+                logger.info("RFID reader reset after error")
+            except Exception as reset_error:
+                logger.error(f"Failed to reset RFID reader: {reset_error}")
             return None
     
     def sync_pending_data(self):
@@ -457,20 +474,43 @@ class RFIDReader:
         logger.info("Background sync worker started")
         
         try:
+            consecutive_errors = 0
+            max_consecutive_errors = 5
+            
             while True:
-                card_data = self.read_card()
-                
-                if card_data:
-                    card_id, card_value = card_data
-                    # Store in database immediately (write-through)
-                    try:
-                        row_id = self.db_manager.insert_card_read(self.device_id, card_id, card_value)
-                        logger.info(f"Card read stored: ID={card_id}, Value='{card_value}' (DB ID: {row_id})")
-                    except Exception as e:
-                        logger.error(f"Failed to store card read in database: {e}")
-                
-                # Small delay to prevent excessive CPU usage
-                time.sleep(0.1)
+                try:
+                    card_data = self.read_card()
+                    
+                    if card_data:
+                        card_id, card_value = card_data
+                        # Store in database immediately (write-through)
+                        try:
+                            row_id = self.db_manager.insert_card_read(self.device_id, card_id, card_value)
+                            logger.info(f"Card read stored: ID={card_id}, Value='{card_value}' (DB ID: {row_id})")
+                            consecutive_errors = 0  # Reset error counter on successful read
+                        except Exception as e:
+                            logger.error(f"Failed to store card read in database: {e}")
+                            consecutive_errors += 1
+                    
+                    # Small delay to prevent excessive CPU usage
+                    time.sleep(0.05)
+                    
+                except Exception as e:
+                    consecutive_errors += 1
+                    logger.error(f"Error in main read loop: {e}")
+                    
+                    if consecutive_errors >= max_consecutive_errors:
+                        logger.error(f"Too many consecutive errors ({consecutive_errors}), resetting RFID reader...")
+                        try:
+                            # Reset the RFID reader
+                            self.reader = SimpleMFRC522()
+                            consecutive_errors = 0
+                            logger.info("RFID reader reset successfully")
+                        except Exception as reset_error:
+                            logger.error(f"Failed to reset RFID reader: {reset_error}")
+                            time.sleep(5)  # Wait longer before retrying
+                    
+                    time.sleep(1)  # Wait before retrying
                 
         except KeyboardInterrupt:
             logger.info("RFID reader service stopped by user")
